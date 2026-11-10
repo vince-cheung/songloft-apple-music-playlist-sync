@@ -95,12 +95,44 @@ Apple Music /v1/me/library/playlists
 ## 开发
 
 ```bash
-npm install          # esbuild / jszip / @songloft/plugin-builder
-node build.mjs       # src/main.ts → dist/_build → dist/apple-music-sync.jsplugin.zip
-node tests/run.mjs   # 24 项行为回归（宿主 mock + Apple 假接口）
+npm ci               # 只装 esbuild + jszip（不拉 native 依赖，CI 友好）
+npm run build        # src/main.ts → dist/_build → dist/apple-music-sync.jsplugin.zip
+npm test             # 26 项行为回归（宿主 mock + Apple 假接口）
+npm run verify       # 对最终 zip 复算 entryHash / zipHash 并与清单比对
+npm run notes        # 生成发布说明正文（用于 GitHub Release）
 ```
 
-构建脚本自己实现打包，但 `entryHash` / `zipHash` 直接调用 `@songloft/plugin-builder` 的官方实现，与宿主 `internal/jsplugin/hash.go` 的规范化算法逐字节一致（已用 Go 实现交叉验证）。
+构建脚本自己实现打包与 hash 计算，`entryHash` / `zipHash` 按宿主 `internal/jsplugin/hash.go` 的规范化算法计算（zipHash 覆盖除 `plugin.json` 外的全部文件），已把宿主 Go 实现抽出来对最终 zip 复算，逐字节一致；`npm run verify` 再从**成品 zip** 独立复算一遍，防止打包环节引入偏差。
+
+## 自动构建与发布（GitHub Actions）
+
+仓库根目录即本插件目录时，`.github/workflows/` 下两个工作流开箱可用：
+
+| 工作流 | 触发 | 做什么 |
+| --- | --- | --- |
+| `ci.yml` | push 到 `main`、PR、手动 | `npm ci` → `npm test` → `npm run build` → `npm run verify` → 上传 `apple-music-sync.jsplugin.zip` 为构建产物 |
+| `release.yml` | push tag `v*`、手动触发 | 同上校验后生成 `SHA256SUMS` 与发布说明，创建 GitHub Release 并附上 zip 与校验文件 |
+
+### 发一个版本的流程
+
+```bash
+# 1. 改 plugin.json 的 version（建议用 YYYY.M.D.N，如 2026.11.20.0）
+# 2. 提交并打 tag，tag 必须与 version 一致（工作流会强校验，不一致直接失败）
+git add .
+git commit -m "release: v2026.11.20.0"
+git tag v2026.11.20.0
+git push origin main --tags
+```
+
+工作流跑完后，Release 页面会出现 `apple-music-sync.jsplugin.zip` 和 `SHA256SUMS`，直接下载安装即可。
+
+几点约定说明：
+
+- **tag 与清单版本强一致**：`release.yml` 会比较 `${tag#v}` 与 `plugin.json` 的 `version`，避免出现「标签说 v2、产物还是 v1」。
+- **手动触发**：Actions 页面点 `Release` → `Run workflow`，`tag` 留空则自动用 `v{plugin.json version}`，也可以指定一个 tag。
+- **依赖源**：`.npmrc` 里把 registry 指回 `registry.npmjs.org` 并用 `replace-registry-host=always` 覆盖锁文件中的镜像地址，避免 CI 拉不到包。
+- **产物不入库**：`.gitignore` 忽略 `dist/`，构建结果只走 Release/Artifacts；`dist/_build/` 是中间目录，不需要提交。
+- 如果仓库是多项目 monorepo（本插件只是子目录），给两个工作流加上 `defaults.run.working-directory` 和 `paths` 过滤即可。
 
 ## 已知限制
 

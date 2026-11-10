@@ -7,7 +7,7 @@
   "main": "main.js",
   "minHostVersion": "2.13.3",
   "permissions": ["storage", "songs.read", "playlists.read", "playlists.write"],
-  "icon": "icon.svg",
+  "icon": "icon.png",
   "staticHash": false,
   "entryHash": "",
   "zipHash": ""

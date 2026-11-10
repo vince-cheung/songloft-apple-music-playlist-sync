@@ -391,7 +391,7 @@
       .then(function (res) {
         if (!res || !res.token) throw new Error("没有拿到开发者令牌");
         var info = {
-          thirdPartyIconURL: baseHref + "static/icon.svg",
+          thirdPartyIconURL: baseHref + "static/icon.png",
           thirdPartyName: location.host,
           thirdPartyParameters: {},
           thirdPartyToken: res.token

@@ -6,11 +6,12 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "verify": "node scripts/verify-artifact.mjs",
+    "notes": "node scripts/release-notes.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
-    "jszip": "^3.10.0",
-    "@songloft/plugin-builder": "2.18.0"
+    "jszip": "^3.10.0"
   }
 }
