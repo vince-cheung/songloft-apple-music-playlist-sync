@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布用的 tag；留空则自动使用 v{plugin.json 的 version}"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve version and tag
+        run: |
+          VERSION=$(node -p "require('./plugin.json').version")
+          ENTRY_PATH=$(node -p "require('./plugin.json').entryPath")
+          echo "PLUGIN_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ENTRY_PATH=$ENTRY_PATH" >> "$GITHUB_ENV"
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="v$VERSION"
+          fi
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "version=$VERSION tag=$TAG entry=$ENTRY_PATH"
+
+      - name: Check tag matches manifest version
+        if: github.ref_type == 'tag'
+        run: |
+          if [ "${GITHUB_REF_NAME#v}" != "$PLUGIN_VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 与 plugin.json 的 version ${PLUGIN_VERSION} 不一致；先更新 plugin.json 再打 tag。"
+            exit 1
+          fi
+
+      - name: Behavior tests
+        run: npm test
+
+      - name: Build plugin package
+        run: npm run build
+
+      - name: Verify artifact & hashes
+        run: npm run verify
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum "$ENTRY_PATH.jsplugin.zip" > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Write release notes
+        run: node scripts/release-notes.mjs > release-notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Apple Music 歌单同步 v${{ env.PLUGIN_VERSION }}
+          body_path: release-notes.md
+          files: |
+            dist/${{ env.ENTRY_PATH }}.jsplugin.zip
+            dist/SHA256SUMS
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          make_latest: true
