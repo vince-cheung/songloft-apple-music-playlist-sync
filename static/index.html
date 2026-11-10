@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Apple Music 歌单同步</title>
+<style>
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft Yahei", sans-serif;
+    background: var(--md-surface, #fdfbff);
+    color: var(--md-on-surface, #1b1b1f);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .hero { display: flex; align-items: center; gap: 12px; padding: 4px 2px 0; }
+  .hero .logo { width: 44px; height: 44px; border-radius: 12px; overflow: hidden; flex: none; }
+  .hero .logo img { width: 100%; height: 100%; object-fit: cover; }
+  .hero h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .hero .sub { font-size: 12px; opacity: .62; margin-top: 2px; }
+  .hero .spacer { flex: 1; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 6px 10px; border-radius: 999px;
+    background: var(--md-surface-container-high, #ece6f0);
+    color: var(--md-on-surface-variant, #49454f);
+    white-space: nowrap;
+  }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--md-outline, #79747e); font-style: normal; }
+  .chip.ok { background: var(--md-success-container, #d7f5dd); color: #17552a; }
+  .chip.ok i { background: #2e9e4f; }
+  .chip.warn { background: var(--md-warning-container, #ffe9c7); color: #6b4300; }
+  .chip.warn i { background: #d18b00; }
+  .chip.bad { background: var(--md-error-container, #ffdad6); color: #6b1a12; }
+  .chip.bad i { background: #c0392b; }
+
+  .card {
+    background: var(--md-surface-container, #f3edf7);
+    border: 1px solid var(--md-outline-variant, #cac4d0);
+    border-radius: var(--md-radius-lg, 16px);
+    padding: 14px 16px;
+    margin-bottom: 0;
+  }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .card-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+  .card-head .hint { font-size: 11px; opacity: .55; }
+  .card-head .spacer { flex: 1; }
+  .desc { font-size: 12px; line-height: 1.6; opacity: .68; margin: 2px 0 0; }
+
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--md-outline-variant, #cac4d0); }
+  .row:first-of-type { border-top: none; }
+  .row .meta { flex: 1; min-width: 0; }
+  .row .label { font-size: 13px; font-weight: 500; }
+  .row .sub { font-size: 12px; opacity: .62; margin-top: 2px; line-height: 1.5; }
+
+  .btn {
+    appearance: none; border: 1px solid transparent; cursor: pointer;
+    font-size: 13px; padding: 8px 14px; border-radius: 10px;
+    background: var(--md-surface-container-high, #ece6f0);
+    color: var(--md-on-surface, #1b1b1f);
+    transition: filter .15s ease, opacity .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { filter: brightness(.95); }
+  .btn.primary { background: var(--md-primary, #415f91); color: var(--md-on-primary, #fff); }
+  .btn.ghost { background: transparent; border-color: var(--md-outline-variant, #cac4d0); }
+  .btn.danger { background: var(--md-error-container, #ffdad6); color: #6b1a12; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .btn.sm { font-size: 12px; padding: 6px 10px; }
+
+  .sw {
+    position: relative; width: 44px; height: 26px; border-radius: 13px; flex: none;
+    background: var(--md-surface-container-highest, #e6e0e9);
+    border: 1px solid var(--md-outline-variant, #cac4d0);
+    cursor: pointer; transition: background .18s ease, border-color .18s ease;
+  }
+  .sw::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--md-surface, #fff);
+    box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .18s ease;
+  }
+  .sw.on { background: var(--md-primary, #415f91); border-color: var(--md-primary, #415f91); }
+  .sw.on::after { transform: translateX(18px); background: var(--md-on-primary, #fff); }
+
+  input[type="text"], input[type="number"], select, textarea {
+    font: inherit; font-size: 13px; color: inherit;
+    background: var(--md-surface, #fdfbff);
+    border: 1px solid var(--md-outline-variant, #cac4d0);
+    border-radius: 10px; padding: 8px 10px; outline: none;
+    min-width: 0;
+  }
+  input:focus, select:focus { border-color: var(--md-primary, #415f91); }
+  .field { width: 110px; }
+  .field.wide { width: 100%; }
+
+  .pl-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--md-outline-variant, #cac4d0); }
+  .pl-item:first-child { border-top: none; }
+  .pl-cover { width: 40px; height: 40px; border-radius: 10px; flex: none; object-fit: cover; background: var(--md-surface-container-high, #ece6f0); }
+  .pl-main { flex: 1; min-width: 0; }
+  .pl-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-sub { font-size: 12px; opacity: .62; margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .pl-sub .err { color: #c0392b; opacity: .95; }
+  .pl-act { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  .job-bar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .progress { flex: 1; height: 6px; border-radius: 3px; background: var(--md-surface-container-highest, #e6e0e9); overflow: hidden; }
+  .progress .fill { height: 100%; width: 0%; background: var(--md-primary, #415f91); transition: width .25s ease; }
+  .job-text { font-size: 12px; opacity: .7; min-width: 96px; text-align: right; }
+
+  .logs {
+    margin-top: 8px; max-height: 260px; overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px; line-height: 1.7;
+    background: var(--md-surface, #fdfbff);
+    border: 1px solid var(--md-outline-variant, #cac4d0);
+    border-radius: 10px; padding: 10px 12px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .logs .warn { color: #b26a00; }
+  .logs .error { color: #c0392b; }
+
+  .empty { text-align: center; padding: 22px 8px; font-size: 13px; opacity: .65; }
+  .hidden { display: none !important; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+    background: var(--md-inverse-surface, #303030); color: var(--md-on-inverse-surface, #f4f0f7);
+    font-size: 13px; padding: 10px 16px; border-radius: 12px; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease; max-width: 84vw; z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  details.help { font-size: 12px; line-height: 1.75; }
+  details.help summary { cursor: pointer; opacity: .7; }
+  details.help ol { padding-left: 18px; margin: 8px 0 0; }
+
+  @media (max-width: 560px) {
+    body { padding: 12px; }
+    .pl-item { flex-wrap: wrap; }
+    .pl-act { margin-left: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="logo"><img src="static/icon.svg" alt="icon"></div>
+    <div>
+      <h1>Apple Music 歌单同步</h1>
+      <div class="sub">把 Apple Music 歌单同步成 Songloft 歌单，只收录歌库中已存在的歌曲</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="chip" id="statusChip"><i></i><span id="statusText">加载中…</span></span>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Apple Music 账户</h2>
+      <div class="spacer"></div>
+      <button class="btn sm ghost" id="logoutBtn">退出授权</button>
+    </div>
+    <p class="desc">用 Apple ID 在 Apple 官方页面完成登录，插件会自动保存登录凭证，不需要手动提取任何 token。</p>
+    <div class="row">
+      <div class="meta">
+        <div class="label" id="authLabel">未授权</div>
+        <div class="sub" id="authSub">点击右侧按钮，在弹窗中完成 Apple ID 登录。</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="loginBtn">登录 Apple Music</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">商店区域</div>
+        <div class="sub">影响 Apple Music 接口的地区与语言，登录后会自动识别并同步。</div>
+      </div>
+      <select id="storefront">
+        <option value="cn">中国大陆 (cn)</option>
+        <option value="hk">香港 (hk)</option>
+        <option value="tw">台湾 (tw)</option>
+        <option value="us">美国 (us)</option>
+        <option value="jp">日本 (jp)</option>
+        <option value="sg">新加坡 (sg)</option>
+        <option value="gb">英国 (gb)</option>
+        <option value="de">德国 (de)</option>
+        <option value="au">澳大利亚 (au)</option>
+        <option value="ca">加拿大 (ca)</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">开发者令牌</div>
+        <div class="sub" id="devTokenDesc">插件会自动从 Apple 网页播放器获取，无需填写。获取失败时可点「检查」查看原因。</div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="devTokenBtn">检查</button>
+      </div>
+    </div>
+    <div class="row hidden" id="devTokenRow">
+      <div class="meta">
+        <div class="label">自定义开发者令牌（高级）</div>
+        <div class="sub">仅当自动获取失败时需要。留空则恢复自动获取。</div>
+      </div>
+    </div>
+    <div class="row hidden" id="devTokenInputRow">
+      <input type="text" class="field wide" id="devTokenInput" placeholder="粘贴 Apple Developer Token（JWT）">
+      <button class="btn" id="devTokenSave">保存</button>
+    </div>
+    <div class="row hidden" id="manualRow">
+      <div class="meta">
+        <div class="label">弹窗登录没成功？</div>
+        <div class="sub">备用方式：在已登录 Apple Music 的浏览器里取到 <b>Music-User-Token</b> 后粘贴保存。正常流程不需要这一步。</div>
+      </div>
+    </div>
+    <div class="row hidden" id="manualInputRow">
+      <input type="text" class="field wide" id="manualToken" placeholder="粘贴 Music-User-Token">
+      <button class="btn" id="manualSave">保存</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>同步设置</h2>
+      <div class="spacer"></div>
+      <span class="hint">修改后自动保存</span>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">自动同步</div>
+        <div class="sub">定时检查 Apple Music 歌单，检测到变化后自动更新对应的 Songloft 歌单。</div>
+      </div>
+      <div class="actions"><div class="sw" id="autoSyncSwitch"></div></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">检查间隔</div>
+        <div class="sub">每隔多久检查一次 Apple Music 歌单（5–1440 分钟）。</div>
+      </div>
+      <div class="actions"><input type="number" class="field" id="interval" min="5" max="1440" step="5"></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">Songloft 歌单名前缀</div>
+        <div class="sub">最终歌单名为「前缀 + Apple 歌单名」。建议保留前缀，避免和现有歌单重名。</div>
+      </div>
+      <div class="actions"><input type="text" class="field" id="prefix" style="width:160px" placeholder="Apple Music · "></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">匹配阈值 <span id="thresholdVal" style="opacity:.6">0.80</span></div>
+        <div class="sub">越高越严格。匹配按「标题 + 艺术家 + 专辑/时长」综合打分，0.8 通常足够准确。</div>
+      </div>
+      <div class="actions"><input type="range" id="threshold" min="0.5" max="0.98" step="0.02" style="width:150px"></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">严格匹配</div>
+        <div class="sub">开启后不再忽略括号里的版本信息（Live / Remaster 等），误配更少但匹配率更低。</div>
+      </div>
+      <div class="actions"><div class="sw" id="strictSwitch"></div></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">移除已删除曲目</div>
+        <div class="sub">Apple Music 里被删掉的歌，同步时也从 Songloft 歌单里移除。</div>
+      </div>
+      <div class="actions"><div class="sw" id="pruneSwitch"></div></div>
+    </div>
+    <div class="row">
+      <div class="meta">
+        <div class="label">自动纳管新歌单</div>
+        <div class="sub">Apple Music 新建的歌单默认参与自动同步（也可以在下方歌单列表里手动开关）。</div>
+      </div>
+      <div class="actions"><div class="sw" id="autoNewSwitch"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Apple Music 歌单</h2>
+      <div class="spacer"></div>
+      <button class="btn sm ghost" id="refreshBtn">刷新</button>
+      <button class="btn sm primary" id="syncAllBtn">同步全部</button>
+    </div>
+    <div id="playlistList"><div class="empty">还没有加载歌单</div></div>
+    <div class="job-bar hidden" id="jobBar">
+      <div class="progress"><div class="fill" id="jobFill"></div></div>
+      <div class="job-text" id="jobText"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>运行日志</h2>
+      <div class="spacer"></div>
+      <button class="btn sm ghost" id="logsBtn">刷新日志</button>
+    </div>
+    <div class="logs" id="logs">（暂无日志）</div>
+  </section>
+
+  <section class="card">
+    <details class="help">
+      <summary>工作方式与常见问题</summary>
+      <ol>
+        <li>登录 Apple Music 后，插件用 Apple 官方接口读取你资料库里的歌单（不会修改 Apple 侧任何数据）。</li>
+        <li>每首歌按「标题 + 艺术家 + 专辑/时长」在 Songloft 歌库里找最像的一首，超过阈值才算匹配成功；找不到的会跳过并列在日志里。</li>
+        <li>同步结果写入名为「前缀 + 歌单名」的 Songloft 歌单，顺序与 Apple 歌单一致。</li>
+        <li>自动同步按设定的间隔检查一次，只有 Apple 歌单内容变了才真正写入，没变化只更新检查时间。</li>
+        <li>「同步全部」会强制重算一遍，适合刚调整过匹配阈值之后使用。</li>
+      </ol>
+    </details>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+<script src="static/js/app.js"></script>
+</body>
+</html>

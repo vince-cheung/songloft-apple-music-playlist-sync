@@ -1,0 +1,16 @@
+{
+  "name": "songloft-plugin-apple-music-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sync Apple Music playlists into Songloft library",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node tests/run.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "jszip": "^3.10.0",
+    "@songloft/plugin-builder": "2.18.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Apple Music 歌单同步",
+  "version": "2026.11.10.0",
+  "description": "把 Apple Music 歌单同步成 Songloft 歌单：只匹配歌库里已存在的歌曲，Apple 侧歌单有变化时自动增量同步。",
+  "author": "Vince Cheung",
+  "entryPath": "apple-music-sync",
+  "main": "main.js",
+  "minHostVersion": "2.13.3",
+  "permissions": ["storage", "songs.read", "playlists.read", "playlists.write"],
+  "icon": "icon.svg",
+  "staticHash": false,
+  "entryHash": "",
+  "zipHash": ""
+}
