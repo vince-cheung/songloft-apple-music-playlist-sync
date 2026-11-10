@@ -61,11 +61,11 @@ jobs:
             exit 1
           fi
 
-      - name: Behavior tests
-        run: npm test
-
       - name: Build plugin package
         run: npm run build
+
+      - name: Behavior tests
+        run: npm test
 
       - name: Verify artifact & hashes
         run: npm run verify

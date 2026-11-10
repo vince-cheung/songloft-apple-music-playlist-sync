@@ -5,6 +5,7 @@
 - 插件版本：`2026.11.10.0`
 - 最低宿主版本（`minHostVersion`）：`2.13.3`
 - 入口：`apple-music-sync`
+- 产物：`dist/apple-music-sync.jsplugin.zip`
 
 ## 安装
 
